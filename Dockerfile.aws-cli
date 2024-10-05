@@ -1,0 +1,4 @@
+FROM cimg/aws:2023.05
+
+USER root
+WORKDIR /root

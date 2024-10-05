@@ -1,0 +1,30 @@
+version: "3"
+services:
+  localstack:
+    image: localstack/localstack:latest
+    container_name: localstack
+    ports:
+      # Expose ports for other services if needed
+      - '4566:4566'
+    environment:
+      - SERVICES=dynamodb
+      - AWS_REGION=eu-west-1
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    networks:
+      - default
+  aws-cli:
+    build:
+      context: .
+      dockerfile: Dockerfile.aws-cli
+    environment:
+      - AWS_ACCESS_KEY_ID=KEY
+      - AWS_SECRET_ACCESS_KEY=SECRET
+      - AWS_REGION=eu-west-1
+    container_name: aws-cli
+    stdin_open: true
+    tty: true
+    networks:
+      - default
+networks:
+  default:
