@@ -1,9 +1,11 @@
 package localstack
 
 import (
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
+	"context"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
 )
 
 // localstack/AWS region
@@ -16,12 +18,21 @@ func getURL() string {
 	return "http://localhost:4566"
 }
 
-// CreateSession creates an AWS session based on Localstack config
-func CreateSession() (sess *session.Session) {
-	cfg := aws.NewConfig().
-		WithRegion(Region).
-		WithEndpoint(getURL()).
-		WithCredentials((credentials.NewStaticCredentials("test", "test", "")))
-	sess = session.Must(session.NewSession(cfg))
-	return
+// CreateConfig creates an AWS config based on Localstack config
+func CreateConfig() (aws.Config, error) {
+	cfg, err := config.LoadDefaultConfig(context.TODO(),
+		config.WithRegion(Region),
+		config.WithEndpointResolverWithOptions(aws.EndpointResolverWithOptionsFunc(
+			func(service, region string, options ...interface{}) (aws.Endpoint, error) {
+				return aws.Endpoint{
+					URL:           getURL(),
+					SigningRegion: Region,
+				}, nil
+			})),
+		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider("test", "test", "")),
+	)
+	if err != nil {
+		return aws.Config{}, err
+	}
+	return cfg, nil
 }

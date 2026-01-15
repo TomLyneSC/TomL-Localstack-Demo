@@ -5,17 +5,18 @@ import (
 	"localstack-demo/src/localstack"
 	"os/exec"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
 
 func AddBannedPlayer(name string, db *localstack.DynamoClient) {
-	attribute := dynamodb.AttributeValue{
-		S: aws.String(name),
+	attribute := types.AttributeValueMemberS{
+		Value: name,
 	}
 
 	item := dynamodb.PutItemInput{
-		Item: map[string]*dynamodb.AttributeValue{
+		Item: map[string]types.AttributeValue{
 			"Name": &attribute,
 		},
 		TableName: aws.String("BannedPlayers"),
@@ -24,12 +25,12 @@ func AddBannedPlayer(name string, db *localstack.DynamoClient) {
 }
 
 func RemoveBannedPlayer(name string, db *localstack.DynamoClient) {
-	attribute := dynamodb.AttributeValue{
-		S: aws.String(name),
+	attribute := types.AttributeValueMemberS{
+		Value: name,
 	}
 
 	item := dynamodb.DeleteItemInput{
-		Key: map[string]*dynamodb.AttributeValue{
+		Key: map[string]types.AttributeValue{
 			"Name": &attribute,
 		},
 		TableName: aws.String("BannedPlayers"),

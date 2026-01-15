@@ -1,42 +1,37 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
 
-// NewConfig proxy underlying aws package
-var NewConfig = aws.NewConfig
-
-// BuildAWSConfig generate a standard AWS Config, passing in endpoint and region for CI Integration tests
-func BuildAWSConfig(region string, endpoint string) aws.Config {
-	config := aws.NewConfig().WithRegion(region)
-	if endpoint != "" {
-		config.WithEndpoint(endpoint)
-	}
-
-	return *config
-}
-
-// CreateSession creates a new AWS session.
-func CreateSession(region string) (sess *session.Session, err error) {
-	// Create AWS Config.
-	if len(region) == 0 {
-		return nil, fmt.Errorf("no valid AWS_REGION found")
-	}
-	cfg := NewConfig().WithRegion(region)
-
-	// Create AWS Session.
-	sess, err = session.NewSession(cfg)
+// BuildAWSConfig takes the default config and enriches it with region and endpoint information
+func BuildAWSConfig(region string, endpoint string) (aws.Config, error) {
+	cfg, err := config.LoadDefaultConfig(context.TODO(),
+		config.WithRegion(region),
+	)
 	if err != nil {
-		return nil, fmt.Errorf("error creating AWS session")
+		return aws.Config{}, err
 	}
 
-	return
+	if endpoint != "" {
+		cfg.BaseEndpoint = aws.String(endpoint)
+		cfg.EndpointResolverWithOptions = aws.EndpointResolverWithOptionsFunc(
+			func(service, region string, options ...interface{}) (aws.Endpoint, error) {
+				return aws.Endpoint{
+					URL:           endpoint,
+					SigningRegion: region,
+				}, nil
+			})
+	}
+
+	return cfg, nil
 }
 
 func main() {
@@ -46,15 +41,16 @@ func main() {
 	region := "eu-west-2"
 	endpoint := "http://localhost:4566"
 
-	// This is the start of the application
-	awsConfig := BuildAWSConfig(region, endpoint)
+	// This is the REAL start of the application
 
-	// Setup AWS connection
-	sess, err := CreateSession("eu-west-2")
+	// Setup AWS connection - first, let's grab the config stored in the secret credentials file
+	cfg, err := BuildAWSConfig(region, endpoint)
 	if err != nil {
 		return
 	}
-	dynamoService := dynamodb.New(sess, &awsConfig)
+
+	// Using the config/credentials, let's setup the service that'll let us talk to dynamoDB
+	dynamoService := dynamodb.NewFromConfig(cfg)
 
 	// Read command line args
 	targetName := flag.CommandLine.String("targetName", "", "Test")
@@ -67,15 +63,17 @@ func main() {
 	in := dynamodb.ScanInput{
 		TableName: aws.String("BannedPlayers"),
 	}
-	out, _ := dynamoService.Scan(&in)
+	out, _ := dynamoService.Scan(context.TODO(), &in)
 	items := out.Items
 
-	// Loop through list to find banned player
+	// Loop through output to find the banned player
 	foundTarget := false
 	for _, item := range items {
-		if *item["Name"].S == *targetName {
-			foundTarget = true
-			break
+		if nameAttr, ok := item["Name"]; ok && nameAttr != nil {
+			if sAttr, ok := nameAttr.(*types.AttributeValueMemberS); ok && sAttr.Value == *targetName {
+				foundTarget = true
+				break
+			}
 		}
 	}
 
