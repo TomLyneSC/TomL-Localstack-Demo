@@ -24,7 +24,7 @@ func TestBannedPlayerMatches(t *testing.T) {
 	// However, we are forcibly making the SDK talk to a container running on our
 	// own machine. It will never reach REAL AWS, and instead will retrieve the data we
 	// just inserted earlier
-	output := helpers.RunBannedCheck("SHREK")
+	output := helpers.RunBannedCheck("DONKEY")
 
 	// Our service just ran and it thinks that it was talking to a real AWS DynamoDB
 	// Check the output! Did our service detect the banned player?
