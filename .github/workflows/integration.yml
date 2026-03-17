@@ -1,0 +1,51 @@
+name: Integration tests
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Hello from Github actions!
+        run: |
+          echo 'Github actions says hello :)'
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+
+      - name: Configure dummy AWS credentials for LocalStack
+        run: |
+          mkdir -p ~/.aws
+          echo '[default]' >> ~/.aws/credentials
+          echo 'aws_access_key_id = test' >> ~/.aws/credentials
+          echo 'aws_secret_access_key = test' >> ~/.aws/credentials
+
+      - name: Start LocalStack
+        run: |
+          docker compose -f docker-compose.yaml up -d localstack
+
+      - name: Wait for LocalStack
+        run: |
+          sleep 10
+
+      - name: Create DynamoDB table
+        run: |
+          aws --endpoint-url http://localhost:4566 --region eu-west-2 dynamodb create-table \
+            --table-name BannedPlayers \
+            --attribute-definitions AttributeName=Name,AttributeType=S \
+            --key-schema AttributeName=Name,KeyType=HASH \
+            --provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5
+
+      - name: Build demo binary
+        run: CGO_ENABLED=0 go build -o demo ./src/main.go
+
+      - name: Run integration tests
+        run: go test -v ./integration/...

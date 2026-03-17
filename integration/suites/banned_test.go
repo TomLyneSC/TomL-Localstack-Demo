@@ -30,14 +30,3 @@ func TestBannedPlayerMatches(t *testing.T) {
 	// Check the output! Did our service detect the banned player?
 	assert.Equal(t, output, "true")
 }
-
-// And now we can simulate a bunch of scenarios that dynamoDB could respond in!
-// And we can confirm our service handles it all correctly and produces the correct output!
-func TestBannedPlayerDoesNotMatch(t *testing.T) {
-}
-
-func TestNoPlayers(t *testing.T) {
-}
-
-func TestMultipleBannedPlayers(t *testing.T) {
-}
